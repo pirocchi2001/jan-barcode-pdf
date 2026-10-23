@@ -46,7 +46,38 @@
   .tablewrap { max-height: 360px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
   th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; }
-  th { position: sticky; top: 0; background: #f7f9fc; color: var(--muted); }
+  th { position: sticky; top: 0; z-index: 1; background: #f1f4f9; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .02em; border-bottom: 2px solid var(--line); }
+  th.num, td.num { text-align: right; }
+  .tablewrap td { vertical-align: middle; padding: 9px 12px; }
+  .tablewrap th { padding: 9px 12px; }
+  .tablewrap tbody tr:nth-child(even) td { background: #fafbfd; }
+  .tablewrap tbody tr:hover td { background: #f1f6fd; }
+  .tablewrap tbody tr.err td, .tablewrap tbody tr.err:hover td { background: var(--err-bg); }
+  td.c-no { width: 64px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.c-jan { width: 170px; }
+  td.c-price { width: 110px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  td.c-st { width: 230px; }
+  td.c-name { min-width: 160px; }
+  td.c-jan .mono { font-size: 13px; letter-spacing: .03em; }
+  .orig { display: block; font-size: 11px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+  .badge { display: inline-block; min-width: 46px; text-align: center; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; line-height: 1.6; }
+  .badge.ok { background: #e4f4e1; color: #2c7a24; }
+  .badge.fix { background: var(--fix-bg); color: #1f5f99; }
+  .badge.ng { background: #f9d6da; color: var(--err-text); }
+  .st-msg { display: block; font-size: 12px; margin-top: 3px; color: var(--muted); line-height: 1.4; }
+  tr.err .st-msg { color: var(--err-text); font-weight: 700; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  button.chip { padding: 5px 14px; border-radius: 999px; font-size: 13px; background: #fff; }
+  button.chip b { margin-left: 4px; }
+  button.chip[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
+  button.chip.ng:not([aria-pressed="true"]) { color: var(--err-text); border-color: #f0b8be; }
+  button.chip.fix:not([aria-pressed="true"]) { color: #1f5f99; border-color: #b9d7f0; }
+  .chipinfo { font-size: 13px; color: var(--muted); margin-left: auto; }
+  .chipinfo b { color: var(--ink); }
+  .pdfinfo { font-size: 14px; color: var(--muted); }
+  .pdfinfo b { color: var(--ink); }
+  th[draggable]::before { content: '⇄ '; opacity: .45; }
+  th[draggable]:hover { background: #e7edf6; color: var(--ink); }
   td.num { text-align: right; white-space: nowrap; }
   .grip { cursor: grab; color: var(--muted); padding-right: 4px; user-select: none; }
   th[draggable] { cursor: grab; user-select: none; white-space: nowrap; }
@@ -57,9 +88,6 @@
   .hint { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; }
   td.mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
   tr.err td { background: var(--err-bg); }
-  tr.err td.st { color: var(--err-text); font-weight: 700; }
-  tr.fix td.st { background: var(--fix-bg); }
-  td.ok { color: var(--ok); font-weight: 700; }
   .note { color: var(--muted); font-size: 12.5px; margin-top: 16px; }
 
   .hide-m { }
@@ -109,7 +137,12 @@
   body.m #resultCard td.c-no::before { content: 'No. '; }
   body.m #resultCard td.c-jan { font-size: 17px; font-weight: 700; }
   body.m #resultCard td.c-price { font-size: 15px; font-weight: 700; text-align: left; }
-  body.m #resultCard td.c-st { font-size: 12.5px; }
+  body.m #resultCard td.c-st { width: 100%; font-size: 12.5px; padding-top: 4px; }
+  body.m #resultCard td.c-no, body.m #resultCard td.c-jan, body.m #resultCard td.c-price { width: 100%; }
+  body.m button.chip { min-height: 38px; padding: 4px 12px; font-size: 14px; }
+  body.m .chipinfo { margin-left: 0; width: 100%; }
+  body.m .tablewrap td { padding: 1px 0; }
+  body.m .tablewrap tbody tr:nth-child(even) td, body.m .tablewrap tbody tr:hover td { background: none; }
   body.m .grip { display: none; }
   body.m #resultCard { padding: 12px; background: transparent; border: 0; box-shadow: none; }
   body.m #makeSummary { font-size: 15px; }
@@ -168,9 +201,9 @@
 
   <section class="card" id="resultCard" data-step="2" hidden>
     <ul id="warnings"></ul>
-    <div class="summary" id="summary"></div>
+    <div class="chips" id="summary"></div>
     <p class="hint" id="colinfo"></p>
-    <p class="hint">行をドラッグすると出力順を、列見出し（バーコード・商品名・価格）をドラッグすると列の並びを入れ替えできます。PDFにもこの並びで出力されます。</p>
+    <p class="hint hide-m">行をドラッグすると出力順を、列見出し（バーコード・商品名・価格）をドラッグすると列の並びを入れ替えできます。PDFにもこの並びで出力されます。</p>
     <div class="tablewrap">
       <table>
         <thead><tr id="thead"></tr></thead>
@@ -183,6 +216,7 @@
   <div class="card show-m" id="makeSummary"></div>
   <div class="actions">
     <button type="button" class="primary" id="make" disabled>PDFを作成してダウンロード</button>
+    <span class="pdfinfo hide-m" id="pdfinfo"></span>
     <span id="status"></span>
   </div>
   <div class="card done" id="done" hidden>
@@ -210,7 +244,7 @@
     <ul>
       <li>ExcelのA列（JANコード）・B列（商品名）・C列（価格）から、<b>A4サイズのPDF</b>を作ります。C列の価格は省略できます。</li>
       <li>1ページに2列で並び、各行に「番号・JANコードの数字とバーコード・商品名・価格」が入ります。</li>
-      <li>確認用の一覧で、行を<b>好きな順番に並べ替え</b>できます。PDFにはその順番で出力されます。</li>
+      <li>確認用の一覧は、状態が <b>✓OK（緑）・補正（青）・✕NG（赤）</b> のバッジで表示されます。上のボタンで「補正あり」「NG」だけに絞り込めます。行を<b>好きな順番に並べ替え</b>することもできます。PDFにはその順番で出力されます。</li>
       <li>データはお使いのパソコンの中だけで処理されます。<b>入力した内容がインターネットに送られることはありません。</b></li>
     </ul>
     <div class="tip">初回のPDF作成時だけ、部品（日本語フォントなど）をインターネットから読み込みます。インターネットに接続した状態でお使いください。</div>
@@ -259,7 +293,8 @@
       <li>左の列の上から下へ1, 2, 3…と並び、続いて右の列へ進みます。番号は並べ替えた後の順番です。</li>
       <li>各行は初期状態で「番号｜JANコードとバーコード｜商品名｜価格（右寄せ）」の順です（列の見出しのドラッグで変更できます）。価格が1件も入っていないときは、従来どおり価格の列なしで出力します。</li>
       <li>1ページに入りきらない分は、自動で次のページになります。</li>
-      <li>商品名が長いときは、枠に収まるように自動で折り返し、必要なら文字を小さくします。</li>
+      <li>商品名・価格・JANコードの数字は、折り返さず1行で枠に収まるように、文字の大きさが自動で調整されます（短いときは大きく、長いときは小さくなります）。</li>
+      <li>紙の余白は上下左右5mmです。行の高さは、1ページにぴったり収まるよう自動で決まり、バーコードも行の高さいっぱいに大きくなります。</li>
     </ul>
 
     <h3>自動で整えてくれる内容</h3>
@@ -280,6 +315,8 @@
       <tr><td>○桁（12〜13桁が必要）</td><td>桁数が足りないか多すぎます。Excelで先頭の0が消えていないか確認してください（下の質問も参照）。</td></tr>
       <tr><td>チェックデジット不正</td><td>JANコードの最後の1桁が計算と合っていません。入力ミスの可能性が高いので、商品パッケージ等で正しい番号を確認してください。</td></tr>
       <tr><td>JANコードが空</td><td>A列が空欄です。</td></tr>
+      <tr><td>価格を修正（文字化け…）</td><td>C列の価格に文字化け（<code>�</code>や<code>Â¥</code>など）がありました。エンコードのずれの復元、前後についた化け文字の除去、同じJANコード・同じ商品名の別の行の価格での補完を試し、直せたものは直しています。<b>PDFの価格欄の下段に、とても小さい文字で「修正内容」と「元の文字列」</b>を印刷します。</td></tr>
+      <tr><td>価格が判読不能（要確認）</td><td>数字そのものが壊れていて直せない価格です。金額は推測せず、PDFには「要確認」と元の文字列を印刷します。元データを確認してください。</td></tr>
       <tr><td>価格が数値でない</td><td>C列に数字以外の文字が入っています。この表示は警告で、PDFには入力どおりの文字で出力されます。</td></tr>
     </table>
   </section>
@@ -325,22 +362,23 @@
 
   // ---- レイアウト定数 (pt) ----
   var MM = 72 / 25.4;
-  var PAGE_MARGIN = 10 * MM;
+  var PAGE_MARGIN = 5 * MM;         // 上下左右の余白 5mm（一般的なプリンターの印刷可能範囲内）
   var PAGE_H = 841.89, PAGE_W = 595.28;
   var CONTENT_W = PAGE_W - PAGE_MARGIN * 2;
   var CONTENT_H = PAGE_H - PAGE_MARGIN * 2;
-  var COL_GAP = 20;
+  var COL_GAP = 8;                // 列間（枠をできるだけ大きくするため最小限）
   var COL_W = (CONTENT_W - COL_GAP) / 2;
   var PAD_X = 3, PAD_Y = 2;
-  var PRICE_W_ON = 50;            // 価格列あり時の幅
+  var PRICE_W_ON = 52;            // 価格列あり時の幅
   var NUM_W, JAN_W, PRICE_W, NAME_W, BAR_W, NAME_USABLE, PRICE_USABLE;
-  var SPACER = 2 * MM;            // 行間 2mm
-  var BAR_H = 8 * MM;             // バーコード高さ 8mm
+  var SPACER = 1.5 * MM;          // 行間（枠をできるだけ大きくするため最小限）
+  var BAR_H = 8 * MM;             // バーコード高さ（buildDocで行の高さに合わせて決定）
+  var JAN_SIZE = 12;              // JAN数字の文字サイズ（同上）
   var JAN_GAP = 2;                // JAN数字とバーコードの間隔
   // 価格列の有無で列幅を切り替える（価格なしは従来レイアウト）
   function setLayout(hasPrice) {
-    NUM_W = hasPrice ? 22 : 28;
-    JAN_W = hasPrice ? 94 : 108;
+    NUM_W = 24;
+    JAN_W = hasPrice ? 100 : 112;
     PRICE_W = hasPrice ? PRICE_W_ON : 0;
     NAME_W = COL_W - NUM_W - JAN_W - PRICE_W;
     BAR_W = JAN_W - PAD_X * 2;    // バーコード幅（枠幅に合わせる）
@@ -352,6 +390,7 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var parsed = [];
+  var filter = 'all';
   var srcLines = [], srcSkip = 0, autoFrozen = false, dragFrom = -1;
   var step = 1, lastBlob = null, lastName = '';
   var mq = window.matchMedia('(max-width: 700px)');
@@ -378,6 +417,41 @@
     if (/^\d+(\.\d+)?$/.test(s)) return { text: '¥' + Number(s).toLocaleString('ja-JP'), ok: true };
     return { text: t.trim(), ok: false };
   }
+  // ---- 価格の文字化け検出・修復 ----
+  var GARB = '\\uFFFD?？\\u0080-\\u00A4\\u00A6-\\u00FF□■◆◇縺繧蜀蜿郢隴髢驕逶譁繝';
+  var GARB_RE = new RegExp('[' + GARB + ']');
+  var GARB_EDGE_RE = new RegExp('^[' + GARB + '\\s]+|[' + GARB + '\\s]+$', 'g');
+  var CP1252 = '€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008dŽ\u008f\u0090‘’“”•–—˜™š›œ\u009džŸ';   // 0x80〜0x9F
+  // 通常の価格表記（数字・¥・円・カンマ・税込など）を除いて、化け文字が残るか
+  function isGarbled(raw) {
+    var rest = (raw || '').replace(/[0-9０-９\s¥￥円,，.．]|税込|税抜/g, '');
+    return rest !== '' && (GARB_RE.test(rest) || /[\u0000-\u001F]/.test(rest));
+  }
+  // UTF-8をLatin-1等で誤読した文字列（例: Â¥1,280）を元に戻す
+  function fixMojibake(str) {
+    if (!/[\u0080-\u00FF€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ]/.test(str)) return null;
+    var bytes = [];
+    for (var ch of str) {
+      var c = ch.codePointAt(0), i;
+      if (c < 256) bytes.push(c);
+      else if ((i = CP1252.indexOf(ch)) >= 0) bytes.push(0x80 + i);
+      else return null;
+    }
+    try { return new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); } catch (e) { return null; }
+  }
+  // 修復できれば { value, how }、できなければ null
+  function repairPrice(raw) {
+    var m = fixMojibake(raw);
+    if (m !== null && !isGarbled(m)) { var pm = parsePrice(m); if (pm.ok && pm.text) return { value: m, how: '文字化けを復元' }; }
+    var core = raw.replace(GARB_EDGE_RE, '');        // 数字の前後に付いた化け文字だけを除去
+    if (core && !GARB_RE.test(core)) { var pc = parsePrice(core); if (pc.ok && pc.text) return { value: core, how: '化け文字を除去' }; }
+    return null;
+  }
+  // PDF下段に載せる極小の注記（元の文字列は出力できる文字だけにする）
+  function noteLines(how, orig) {
+    var o = Array.from(orig).map(function (ch) { return /[\x20-\x7E¥￥円，．、。ぁ-んァ-ヶ一-龥]/.test(ch) ? ch : '□'; }).join('');
+    return ['修正：' + how, '元：' + o];
+  }
   var PRICE_TOKEN = /^[¥￥]?[0-9０-９][0-9０-９,，.．]*円?$/;
   function unquote(s) { return s.replace(/^"(.*)"$/s, '$1').replace(/""/g, '"'); }
 
@@ -386,6 +460,10 @@
   function isPriceCell(raw) {
     var t = toHalfWidth(raw || '').replace(/[，､]/g, ',').replace(/．/g, '.').replace(/[\s 　]/g, '');
     return PRICE_TOKEN.test(t) && !looksLikeJan(raw);
+  }
+  // 価格列の判定用: 正しい価格表記、または数字・記号・化け文字を含む価格らしい文字化け
+  function isPriceish(v) {
+    return isPriceCell(v) || (isGarbled(v) && !looksLikeJan(v) && /[0-9０-９¥￥円]|\uFFFD|[\u0080-\u00FF]/.test(v));
   }
   function detectColumns(rows) {
     var map = { jan: -1, name: -1, price: -1 };
@@ -413,8 +491,8 @@
       map[role] = bi;
     }
     best(looksLikeJan, 'jan');
-    best(isPriceCell, 'price');
-    best(function (v) { return !looksLikeJan(v) && !isPriceCell(v); }, 'name');
+    best(isPriceish, 'price');
+    best(function (v) { return !looksLikeJan(v) && !isPriceish(v); }, 'name');
     // 3) 判定できなかった役割は、従来の並び（A=JAN, B=商品名, C=価格）を空いている列に割り当てる
     if (map.jan < 0) map.jan = [0, 1, 2].filter(function (i) { return i !== map.name && i !== map.price; })[0];
     if (map.name < 0) map.name = [1, 0, 2].filter(function (i) { return i !== map.jan && i !== map.price; })[0];
@@ -462,12 +540,27 @@
       else if (jan.length === 12) { jan = '0' + jan; status = 'fix'; msg = '12桁→先頭に0を補填'; }
       else if (jan.length !== 13) { status = 'err'; msg = jan.length + '桁（12〜13桁が必要）'; }
       if (status !== 'err' && !ean13Valid(jan)) { status = 'err'; msg = 'チェックデジット不正'; }
-      var price = parsePrice(r.rawPrice);
-      if (status !== 'err' && !price.ok) {
-        msg = (status === 'fix' ? msg + ' / ' : '') + '価格が数値でない（そのまま出力）'; status = 'fix';
-      }
+      var price = parsePrice(r.rawPrice), pnote = null, pbad = false, pmsg = '';
+      if (!price.ok && isGarbled(r.rawPrice)) {
+        var rp = repairPrice(r.rawPrice);
+        if (rp) { price = parsePrice(rp.value); pnote = noteLines(rp.how, r.rawPrice); pmsg = '価格を修正（' + rp.how + '）'; }
+        else { price = { text: '要確認', ok: true }; pbad = true; pnote = noteLines('修正不可（判読不能）', r.rawPrice); pmsg = '価格が判読不能（要確認）'; }
+      } else if (!price.ok) pmsg = '価格が数値でない（そのまま出力）';
+      if (status !== 'err' && pmsg) { msg = (status === 'fix' ? msg + ' / ' : '') + pmsg; status = 'fix'; }
       if (status === 'err') warnings.push((i + 1) + '件目: ' + msg + '「' + r.rawJan + '」');
-      return { jan: jan, rawJan: r.rawJan, name: r.name, price: price.text, status: status, msg: msg };
+      return { jan: jan, rawJan: r.rawJan, name: r.name, price: price.text, priceNote: pnote, priceBad: pbad, rawPrice: r.rawPrice, status: status, msg: msg };
+    });
+    // 前後の状況の確認: 判読不能な価格は、同じJAN（なければ同じ商品名）の別の行にある正常な価格で補う
+    items.forEach(function (it) {
+      if (!it.priceBad) return;
+      var other = items.filter(function (o) {
+        return o !== it && !o.priceBad && o.price && o.status !== 'err' && /^¥/.test(o.price) &&
+          ((it.jan && o.jan === it.jan) || (it.name && o.name === it.name));
+      })[0];
+      if (!other) return;
+      it.price = other.price; it.priceBad = false;
+      it.priceNote = noteLines('同一商品の別行の価格を採用', it.rawPrice);
+      if (it.status !== 'err') it.msg = it.msg.replace('価格が判読不能（要確認）', '価格を修正（同じ商品の別の行から補完）');
     });
     return { items: items, warnings: warnings, skipped: skipped, lines: lines, skip: skip, colInfo: describeColumns(map, cells.some(function (c) { return c; })) };
   }
@@ -491,25 +584,48 @@
       var more = document.createElement('li'); more.textContent = '…ほか ' + (r.warnings.length - 50) + ' 件';
       ul.appendChild(more);
     }
-    $('summary').textContent = '全 ' + parsed.length + ' 件（出力 ' + valid + ' 件 / 警告 ' + (parsed.length - valid) + ' 件）' + (r.skipped ? ' ※1行目をヘッダーとして除外' : '');
+    var nOk = 0, nFix = 0, nNg = 0;
+    parsed.forEach(function (x) { if (x.status === 'ok') nOk++; else if (x.status === 'fix') nFix++; else nNg++; });
+    if (filter === 'fix' && !nFix || filter === 'ng' && !nNg) filter = 'all';
+    var sm = $('summary'); sm.textContent = '';
+    [['all', '全て', parsed.length], ['fix', '補正あり', nFix], ['ng', 'NG（出力されません）', nNg]].forEach(function (c) {
+      if (c[0] !== 'all' && !c[2]) return;
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'chip ' + c[0];
+      b.setAttribute('aria-pressed', String(filter === c[0])); b.dataset.filter = c[0];
+      b.appendChild(document.createTextNode(c[1])); var n = document.createElement('b'); n.textContent = c[2]; b.appendChild(n);
+      sm.appendChild(b);
+    });
+    var info = document.createElement('span'); info.className = 'chipinfo';
+    info.innerHTML = 'PDF出力 <b>' + valid + '</b> 件 / 約 <b>' + Math.ceil(valid / (2 * +$('rows').value)) + '</b> ページ' + (r.skipped ? '　※1行目はヘッダーとして除外' : '');
+    sm.appendChild(info);
+    $('pdfinfo').innerHTML = valid ? '出力 <b>' + valid + '</b> 件 / 約 <b>' + Math.ceil(valid / (2 * +$('rows').value)) + '</b> ページ（A4）' : '';
 
     renderHead();
     var tb = $('tbody'); tb.textContent = '';
     parsed.forEach(function (it, i) {
+      if (filter === 'fix' && it.status !== 'fix' || filter === 'ng' && it.status !== 'err') return;
       var tr = document.createElement('tr'); tr.className = it.status;
-      tr.dataset.i = i; tr.draggable = true;
+      tr.dataset.i = i; tr.draggable = filter === 'all';   // 絞り込み中は並べ替え不可
       function cell(cls, text) { var td = document.createElement('td'); td.className = cls; td.textContent = text; tr.appendChild(td); return td; }
       var no = cell('c-no', ''); var grip = document.createElement('span'); grip.className = 'grip'; grip.textContent = '⠿'; grip.title = 'ドラッグで移動';
-      no.appendChild(grip); no.appendChild(document.createTextNode(String(i + 1)));
+      if (filter === 'all') no.appendChild(grip);
+      no.appendChild(document.createTextNode(String(i + 1)));
       visibleCols().forEach(function (k) {
         if (k === 'jan') {
           var td = cell('c-jan', ''); var t = document.createElement('div'); t.className = 'mono';
           t.textContent = it.status === 'err' ? it.rawJan : it.jan; td.appendChild(t);
           if (it.status !== 'err') td.insertAdjacentHTML('beforeend', previewBarcode(it.jan));
         } else if (k === 'name') cell('c-name', it.name);
-        else cell('c-price num', it.price);
+        else {
+          var pt = cell('c-price num', it.price);
+          if (it.priceNote) { var og = document.createElement('span'); og.className = 'orig'; og.textContent = it.priceNote[1]; pt.appendChild(og); }
+        }
       });
-      cell('c-st st' + (it.status === 'ok' ? ' ok' : ''), it.status === 'err' ? 'NG：' + it.msg : it.msg);
+      var st = cell('c-st', ''), bd = document.createElement('span');
+      bd.className = 'badge ' + (it.status === 'err' ? 'ng' : it.status);
+      bd.textContent = it.status === 'ok' ? '✓ OK' : it.status === 'fix' ? '補正' : '✕ NG';
+      st.appendChild(bd);
+      if (it.status !== 'ok') { var mg = document.createElement('span'); mg.className = 'st-msg'; mg.textContent = it.msg; st.appendChild(mg); }
       tb.appendChild(tr);
     });
   }
@@ -523,6 +639,7 @@
     var tr = $('thead'); tr.textContent = '';
     function th(text, key) {
       var el = document.createElement('th'); el.textContent = text;
+      if (key === 'price') el.className = 'num';
       if (key) { el.draggable = true; el.dataset.col = key; el.title = 'ドラッグで列の順番を変更'; }
       tr.appendChild(el);
     }
@@ -573,6 +690,10 @@
     render();
   }
   function thawHeader() { if (autoFrozen) { $('header').value = 'auto'; autoFrozen = false; } }
+  $('summary').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-filter]'); if (!b) return;
+    filter = b.dataset.filter; render();
+  });
   $('tbody').addEventListener('dragstart', function (e) {
     var tr = e.target.closest('tr'); if (!tr) return;
     dragFrom = +tr.dataset.i; tr.classList.add('dragging');
@@ -617,61 +738,66 @@
     return svg.outerHTML;
   }
 
-  // 全角=1em, 半角=約0.55em として折り返し行数を概算
+  // 文字幅: 読み込み済みのPDF用フォントでcanvas実測（未読込時は全角=1em・半角=0.55emで概算）
+  var measureCtx = null;
   function textWidth(text, size) {
+    if (measureCtx) return measureCtx.measureText(text).width * size / 100;
     var w = 0;
     for (var ch of text) w += (/[ -~｡-ﾟ]/.test(ch) ? 0.55 : 1.0) * size;
-    return w;
-  }
-  function countLines(text, size) {
-    var lines = 1, w = 0;
-    for (var ch of text) {
-      var cw = (/[ -~｡-ﾟ]/.test(ch) ? 0.55 : 1.0) * size;
-      if (w + cw > NAME_USABLE) { lines++; w = cw; } else { w += cw; }
-    }
-    return lines;
+    return w * 1.05;
   }
   var LH = 1.15;                 // 実効行高(em)
   var LH_PDF = LH / 1.395;       // pdfmakeのlineHeightはフォント固有行高(M+ 1pは約1.395em)に掛かる
-  function fitName(text, maxH) {
-    var size = 12;
-    while (size > 5 && countLines(text, size) * size * LH > maxH) size -= 0.5;
-    return { size: size, h: countLines(text, size) * size * LH };
+  // 折り返さず1行で maxW に収まる文字サイズ（maxSizeまで拡大・収まらなければ縮小）
+  function fitSize(text, maxW, maxSize) {
+    var w = textWidth(text, maxSize);
+    var size = w > maxW ? maxSize * maxW / w * 0.97 : maxSize;
+    return Math.max(2, Math.floor(size * 10) / 10);
   }
+  // 1行テキストを縦中央に置くための上マージン
+  function midTop(inner, size) { return Math.max(0, (inner - size * LH) / 2); }
 
   function buildItem(no, it, rowH) {
     var inner = rowH - PAD_Y * 2 - 1;   // 余白・罫線を除いた内側の高さ
-    var cellH = inner;
-    var numSize = no < 100 ? 12 : no < 1000 ? 10 : 8;
-    var numTop = Math.max(0, (inner - numSize * LH) / 2);
-    var f = fitName(it.name, inner);
-    var nameTop = Math.max(0, (inner - f.h) / 2);
-    var janSize = Math.min(12, Math.floor(BAR_W / (13 * 0.62) * 2) / 2);   // 13桁が1行に収まる文字サイズ
-    var janBlock = janSize + JAN_GAP + BAR_H;
+    var maxSize = Math.min(inner * 0.42, 20);
+    var numSize = fitSize(String(no), NUM_W - PAD_X * 2 - 2, Math.min(maxSize, 14));
+    var f = { size: fitSize(it.name, NAME_USABLE, maxSize) };
+    var ps = PRICE_W ? fitSize(it.price, PRICE_USABLE, it.priceNote ? maxSize * 0.7 : maxSize) : 0;
+    // 修正した価格は、下段に極小文字で修正内容を載せる
+    var noteSizes = (it.priceNote || []).map(function (t) { return fitSize(t, PRICE_USABLE, 3.5); });
+    var priceBlockH = ps * LH + noteSizes.reduce(function (a, z) { return a + z * LH + 0.8; }, 0);
+    var janBlock = JAN_SIZE + JAN_GAP + BAR_H;
     var janTop = Math.max(0, (inner - janBlock) / 2);
     var widths = [NUM_W - PAD_X * 2], cells = [
-      { text: String(no), fontSize: numSize, lineHeight: LH_PDF, alignment: 'center', margin: [-2, numTop, -2, 0] }
+      { text: String(no), fontSize: numSize, lineHeight: LH_PDF, alignment: 'center', margin: [-2, midTop(inner, numSize), -2, 0] }
     ];
-    var ps = 12;
-    if (PRICE_W) while (ps > 6 && textWidth(it.price, ps) > PRICE_USABLE) ps -= 0.5;   // 価格は1行・右寄せ。枠幅に収まるまで縮小
     colOrder.forEach(function (k) {
       if (k === 'jan') {
         widths.push(JAN_W - PAD_X * 2);
         cells.push({ margin: [0, janTop, 0, 0], stack: [
-          { text: it.jan, fontSize: janSize, alignment: 'center', lineHeight: 1 / 1.395 },
+          { text: it.jan, fontSize: JAN_SIZE, alignment: 'center', lineHeight: 1 / 1.395 },
           { svg: barcodeSvg(it.jan), width: BAR_W, alignment: 'center', margin: [0, JAN_GAP, 0, 0] }
         ] });
       } else if (k === 'name') {
         widths.push(NAME_W - PAD_X * 2);
-        cells.push({ text: it.name, fontSize: f.size, lineHeight: LH_PDF, margin: [0, nameTop, 0, 0] });
+        cells.push({ text: it.name, fontSize: f.size, lineHeight: LH_PDF, margin: [0, midTop(inner, f.size), 0, 0] });
       } else if (PRICE_W) {
         widths.push(PRICE_W - PAD_X * 2);
-        cells.push({ text: it.price, fontSize: ps, lineHeight: LH_PDF, alignment: 'right', margin: [0, Math.max(0, (inner - ps * LH) / 2), 0, 0] });
+        var priceCell = { text: it.price, fontSize: ps, lineHeight: LH_PDF, alignment: 'right' };
+        if (it.priceNote) {
+          cells.push({ margin: [0, Math.max(0, (inner - priceBlockH) / 2), 0, 0], stack: [priceCell].concat(it.priceNote.map(function (t, n) {
+            return { text: t, fontSize: noteSizes[n], lineHeight: LH_PDF, alignment: 'right', color: '#555555', margin: [0, 0.8, 0, 0] };
+          })) });
+        } else {
+          priceCell.margin = [0, midTop(inner, ps), 0, 0];
+          cells.push(priceCell);
+        }
       }
     });
     return {
       table: {
-        widths: widths, // pdfmakeの幅はパディングを含まない heights: [cellH],
+        widths: widths, // pdfmakeの幅はパディングを含まない
+        heights: [inner],   // 行の高さを固定してページいっぱいに並べる
         body: [cells]
       },
       layout: {
@@ -687,6 +813,10 @@
   function buildDoc(items, perCol) {
     setLayout(hasPrice(items));
     var rowH = Math.floor(((CONTENT_H - 3) / perCol - SPACER - 1) * 10) / 10;
+    // 行の高さいっぱいにバーコードを広げる（JAN数字は13桁が幅に収まる大きさ）
+    var inner = rowH - PAD_Y * 2 - 1;
+    JAN_SIZE = Math.min(fitSize('0000000000000', BAR_W, 14), inner * 0.3);
+    BAR_H = Math.max(8, inner - 2 - JAN_SIZE - JAN_GAP);
     var perPage = perCol * 2, content = [];
     for (var p = 0; p * perPage < items.length; p++) {
       var slice = items.slice(p * perPage, (p + 1) * perPage);
@@ -703,12 +833,24 @@
       pageSize: 'A4', pageMargins: [PAGE_MARGIN, PAGE_MARGIN, PAGE_MARGIN, PAGE_MARGIN],
       defaultStyle: { font: 'JP', fontSize: 12 },
       footer: function (cur, count) {
-        return { text: cur + ' / ' + count, alignment: 'center', fontSize: 8, color: '#888888', margin: [0, 10, 0, 0] };
+        return { text: cur + ' / ' + count, alignment: 'center', fontSize: 7, color: '#888888', margin: [0, 3, 0, 0] };
       },
       content: content
     };
   }
 
+  // 文字幅の実測用に、同じフォントをブラウザへ登録（失敗しても概算で動作）
+  function registerMeasureFont(buf) {
+    try {
+      var face = new FontFace('JanMeasure', buf.slice(0));
+      return face.load().then(function () {
+        document.fonts.add(face);
+        var c = document.createElement('canvas').getContext('2d');
+        c.font = '100px JanMeasure';
+        measureCtx = c;
+      }).catch(function () {});
+    } catch (e) { return Promise.resolve(); }
+  }
   var fontB64 = null;
   function loadFont() {
     if (fontB64) return Promise.resolve(fontB64);
@@ -719,7 +861,7 @@
       var bytes = new Uint8Array(buf), bin = '', CH = 0x8000;
       for (var i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
       fontB64 = btoa(bin);
-      return fontB64;
+      return registerMeasureFont(buf).then(function () { return fontB64; });
     });
   }
 
