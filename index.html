@@ -56,7 +56,8 @@
   tr.over td { border-top: 2px solid var(--navy); }
   .hint { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; }
   td.mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
-  tr.err td { background: var(--err-bg); color: var(--err-text); }
+  tr.err td { background: var(--err-bg); }
+  tr.err td.st { color: var(--err-text); font-weight: 700; }
   tr.fix td.st { background: var(--fix-bg); }
   td.ok { color: var(--ok); font-weight: 700; }
   .note { color: var(--muted); font-size: 12.5px; margin-top: 16px; }
@@ -508,7 +509,7 @@
         } else if (k === 'name') cell('c-name', it.name);
         else cell('c-price num', it.price);
       });
-      cell('c-st st' + (it.status === 'ok' ? ' ok' : ''), it.msg);
+      cell('c-st st' + (it.status === 'ok' ? ' ok' : ''), it.status === 'err' ? 'NG：' + it.msg : it.msg);
       tb.appendChild(tr);
     });
   }
