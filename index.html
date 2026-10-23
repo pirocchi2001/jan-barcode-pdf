@@ -194,6 +194,13 @@
           <option value="16">16行</option>
         </select>
       </label>
+      <label>段組み
+        <select id="cols">
+          <option value="auto">自動（名前が長いと1段）</option>
+          <option value="2">2段（1ページに多く）</option>
+          <option value="1">1段（商品名を大きく）</option>
+        </select>
+      </label>
       <button type="button" id="sample">サンプルを入力</button>
       <button type="button" id="clear">クリア</button>
     </div>
@@ -285,6 +292,7 @@
         <b>あり</b>：必ず1行目を見出しとして除外します。<br>
         <b>なし</b>：1行目もデータとして扱います。</td></tr>
       <tr><td>1列あたりの行数</td><td>14・15・16行から選びます。数字が大きいほど1ページに多く入りますが、1行は少し小さくなります。迷ったら <b>15行</b> のままで大丈夫です。</td></tr>
+      <tr><td>段組み</td><td><b>自動</b>（おすすめ）：商品名が長く、2段だと文字が小さくなりすぎる（7pt未満）場合は、自動で<b>1段組み</b>にして商品名を大きく表示します（ページ数は増えます）。<br><b>2段</b>：常に2段組み（1ページに多く入ります）。<br><b>1段</b>：常に1段組み（商品名がいちばん大きくなります）。</td></tr>
       <tr><td>クリア</td><td>貼り付けた内容を消して最初からやり直します。</td></tr>
     </table>
 
@@ -303,6 +311,8 @@
       <tr><td><code>&nbsp;490-1234-567-894&nbsp;</code>（空白・ハイフンあり）</td><td><code>4901234567894</code></td></tr>
       <tr><td><code>490123456789</code>（12桁）</td><td><code>0490123456789</code>（先頭に0を追加して13桁）</td></tr>
       <tr><td><code>４９０１２３４５６７８９４</code>（全角数字）</td><td><code>4901234567894</code>（半角に変換）</td></tr>
+      <tr><td><code>ﾏｲｸﾛｸﾗｲﾒｲﾄ</code>（半角カナの商品名）</td><td><code>マイクロクライメイト</code>（全角に変換。半角カナは小さく読みにくいため）</td></tr>
+      <tr><td><code>\11,400</code>（円記号が<code>\</code>の価格）</td><td><code>¥11,400</code></td></tr>
       <tr><td><code>1280</code>、<code>¥1,280</code>、<code>1,280円</code>（価格）</td><td><code>¥1,280</code>（円記号・カンマ付きに統一）</td></tr>
     </table>
   </section>
@@ -367,7 +377,7 @@
   var CONTENT_W = PAGE_W - PAGE_MARGIN * 2;
   var CONTENT_H = PAGE_H - PAGE_MARGIN * 2;
   var COL_GAP = 8;                // 列間（枠をできるだけ大きくするため最小限）
-  var COL_W = (CONTENT_W - COL_GAP) / 2;
+  var COL_W = (CONTENT_W - COL_GAP) / 2;   // 2段組みの1列の幅（1段組みは setLayout で CONTENT_W に切替）
   var PAD_X = 3, PAD_Y = 2;
   var PRICE_W_ON = 52;            // 価格列あり時の幅
   var NUM_W, JAN_W, PRICE_W, NAME_W, BAR_W, NAME_USABLE, PRICE_USABLE;
@@ -376,16 +386,17 @@
   var JAN_SIZE = 12;              // JAN数字の文字サイズ（同上）
   var JAN_GAP = 2;                // JAN数字とバーコードの間隔
   // 価格列の有無で列幅を切り替える（価格なしは従来レイアウト）
-  function setLayout(hasPrice) {
+  function setLayout(hasPrice, single) {
+    COL_W = single ? CONTENT_W : (CONTENT_W - COL_GAP) / 2;
     NUM_W = 24;
-    JAN_W = hasPrice ? 100 : 112;
-    PRICE_W = hasPrice ? PRICE_W_ON : 0;
+    JAN_W = single ? 130 : hasPrice ? 100 : 112;
+    PRICE_W = hasPrice ? (single ? 90 : PRICE_W_ON) : 0;
     NAME_W = COL_W - NUM_W - JAN_W - PRICE_W;
     BAR_W = JAN_W - PAD_X * 2;    // バーコード幅（枠幅に合わせる）
     NAME_USABLE = NAME_W - PAD_X * 2;
     PRICE_USABLE = PRICE_W - PAD_X * 2;
   }
-  setLayout(false);
+  setLayout(false, false);
   var FONT_URL = 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/mplus1p/MPLUS1p-Regular.ttf';
 
   var $ = function (id) { return document.getElementById(id); };
@@ -412,7 +423,7 @@
   // 価格: ¥・円・カンマ・全角数字を許容。数値なら「¥1,280」に整形
   function parsePrice(raw) {
     var t = toHalfWidth(raw || '').replace(/[，､]/g, ',').replace(/．/g, '.');
-    var s = t.replace(/[\s 　¥￥円,]|税込|税抜/g, '');
+    var s = t.replace(/[\s 　¥￥\\＼円,]|税込|税抜/g, '');
     if (s === '') return { text: '', ok: true };
     if (/^\d+(\.\d+)?$/.test(s)) return { text: '¥' + Number(s).toLocaleString('ja-JP'), ok: true };
     return { text: t.trim(), ok: false };
@@ -452,7 +463,9 @@
     var o = Array.from(orig).map(function (ch) { return /[\x20-\x7E¥￥円，．、。ぁ-んァ-ヶ一-龥]/.test(ch) ? ch : '□'; }).join('');
     return ['修正：' + how, '元：' + o];
   }
-  var PRICE_TOKEN = /^[¥￥]?[0-9０-９][0-9０-９,，.．]*円?$/;
+  var PRICE_TOKEN = /^[¥￥\\＼]?[0-9０-９][0-9０-９,，.．]*円?$/;
+  // 半角カナ（ﾏｲｸﾛ・濁点付きを含む）は小さく読みにくいので全角にそろえる
+  function kanaFull(s) { return s.replace(/[\uFF61-\uFF9F]+/g, function (m) { return m.normalize('NFKC'); }); }
   function unquote(s) { return s.replace(/^"(.*)"$/s, '$1').replace(/""/g, '"'); }
 
   // ---- 列の並びの自動認識（タブ区切りのデータ）----
@@ -526,7 +539,7 @@
         jan = tk[ji]; price = pi >= 0 ? tk[pi] : '';
         name = tk.filter(function (_, k) { return k !== ji && k !== pi; }).join(' ');
       }
-      return { rawJan: unquote(jan.trim()), name: unquote(name.trim()), rawPrice: unquote(price.trim()) };
+      return { rawJan: unquote(jan.trim()), name: kanaFull(unquote(name.trim())), rawPrice: unquote(price.trim()) };
     });
     var warnings = [], skip = 0;
     var hmode = $('header').value, skipped = false;
@@ -596,9 +609,11 @@
       sm.appendChild(b);
     });
     var info = document.createElement('span'); info.className = 'chipinfo';
-    info.innerHTML = 'PDF出力 <b>' + valid + '</b> 件 / 約 <b>' + Math.ceil(valid / (2 * +$('rows').value)) + '</b> ページ' + (r.skipped ? '　※1行目はヘッダーとして除外' : '');
+    var pi = pageInfo(parsed.filter(function (x) { return x.status !== 'err'; }));
+    var pinfo = '<b>' + pi.pages + '</b> ページ' + (pi.single ? '（1段組み）' : '');
+    info.innerHTML = 'PDF出力 <b>' + valid + '</b> 件 / 約 ' + pinfo + (r.skipped ? '　※1行目はヘッダーとして除外' : '');
     sm.appendChild(info);
-    $('pdfinfo').innerHTML = valid ? '出力 <b>' + valid + '</b> 件 / 約 <b>' + Math.ceil(valid / (2 * +$('rows').value)) + '</b> ページ（A4）' : '';
+    $('pdfinfo').innerHTML = valid ? '出力 <b>' + valid + '</b> 件 / 約 ' + pinfo + '（A4）' : '';
 
     renderHead();
     var tb = $('tbody'); tb.textContent = '';
@@ -810,14 +825,30 @@
     };
   }
 
+  function rowHeight(perCol) { return Math.floor(((CONTENT_H - 3) / perCol - SPACER - 1) * 10) / 10; }
+  // 段組み: 自動のときは、商品名が小さくなりすぎる（7pt未満が2割超）なら1段組みにする
+  function useSingle(items, perCol) {
+    var m = $('cols').value;
+    if (m !== 'auto') return m === '1';
+    if (!items.length) return false;
+    setLayout(hasPrice(items), false);
+    var inner = rowHeight(perCol) - PAD_Y * 2 - 1, maxSize = Math.min(inner * 0.42, 20);
+    var small = items.filter(function (x) { return fitSize(x.name, NAME_USABLE, maxSize) < 7; }).length;
+    return small / items.length > 0.2;
+  }
+  function pageInfo(items) {
+    var perCol = +$('rows').value, single = useSingle(items, perCol);
+    return { single: single, pages: Math.ceil(items.length / (single ? perCol : perCol * 2)) };
+  }
   function buildDoc(items, perCol) {
-    setLayout(hasPrice(items));
-    var rowH = Math.floor(((CONTENT_H - 3) / perCol - SPACER - 1) * 10) / 10;
+    var single = useSingle(items, perCol);
+    setLayout(hasPrice(items), single);
+    var rowH = rowHeight(perCol);
     // 行の高さいっぱいにバーコードを広げる（JAN数字は13桁が幅に収まる大きさ）
     var inner = rowH - PAD_Y * 2 - 1;
     JAN_SIZE = Math.min(fitSize('0000000000000', BAR_W, 14), inner * 0.3);
     BAR_H = Math.max(8, inner - 2 - JAN_SIZE - JAN_GAP);
-    var perPage = perCol * 2, content = [];
+    var perPage = single ? perCol : perCol * 2, content = [];
     for (var p = 0; p * perPage < items.length; p++) {
       var slice = items.slice(p * perPage, (p + 1) * perPage);
       var left = [], right = [];
@@ -825,7 +856,7 @@
         var no = p * perPage + i + 1;
         (i < perCol ? left : right).push(buildItem(no, it, rowH));
       });
-      var cols = { columns: [{ width: COL_W, stack: left }, { width: COL_GAP, text: '' }, { width: COL_W, stack: right }] };
+      var cols = { columns: single ? [{ width: COL_W, stack: left }] : [{ width: COL_W, stack: left }, { width: COL_GAP, text: '' }, { width: COL_W, stack: right }] };
       if (p > 0) cols.pageBreak = 'before';
       content.push(cols);
     }
@@ -927,7 +958,7 @@
       var n = +dots[j].getAttribute('data-s');
       dots[j].classList.toggle('cur', n === step); dots[j].classList.toggle('done', n < step);
     }
-    var pages = Math.ceil(valid / (2 * +$('rows').value));
+    var pages = pageInfo(parsed.filter(function (x) { return x.status !== 'err'; })).pages;
     $('makeSummary').innerHTML = '出力 <b>' + valid + '</b> 件 / 約 <b>' + pages + '</b> ページ（A4）' +
       (parsed.length - valid ? '<br>※警告 ' + (parsed.length - valid) + ' 件は出力されません' : '');
     $('mback').style.visibility = step === 1 ? 'hidden' : 'visible';
@@ -940,6 +971,7 @@
   $('mnext').addEventListener('click', function () { setStep(Math.min(3, step + 1)); });
   $('mback').addEventListener('click', function () { setStep(Math.max(1, step - 1)); });
   $('rows').addEventListener('change', render);
+  $('cols').addEventListener('change', render);
   var onMq = function () { if (!mq.matches) step = 1; updateUi(validCount()); };
   if (mq.addEventListener) mq.addEventListener('change', onMq); else mq.addListener(onMq);
 
