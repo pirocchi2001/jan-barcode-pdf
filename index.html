@@ -47,6 +47,14 @@
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
   th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; }
   th { position: sticky; top: 0; background: #f7f9fc; color: var(--muted); }
+  td.num { text-align: right; white-space: nowrap; }
+  td.mv { white-space: nowrap; }
+  .mvbox { display: flex; gap: 4px; align-items: center; }
+  .mvbtn { padding: 1px 7px; font-size: 12px; font-weight: 400; border-radius: 6px; line-height: 1.5; }
+  .grip { cursor: grab; color: var(--muted); padding-right: 4px; user-select: none; }
+  tr.dragging { opacity: .4; }
+  tr.over td { border-top: 2px solid var(--navy); }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; }
   td.mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
   tr.err td { background: var(--err-bg); color: var(--err-text); }
   tr.fix td.st { background: var(--fix-bg); }
@@ -99,7 +107,11 @@
   body.m #resultCard td:nth-child(1) { font-size: 12px; color: var(--muted); }
   body.m #resultCard td:nth-child(1)::before { content: 'No. '; }
   body.m #resultCard td:nth-child(2) { font-size: 17px; font-weight: 700; }
-  body.m #resultCard td:nth-child(4) { font-size: 12.5px; }
+  body.m #resultCard td:nth-child(4) { font-size: 15px; font-weight: 700; }
+  body.m #resultCard td:nth-child(5) { font-size: 12.5px; }
+  body.m #resultCard td.mv { padding-top: 6px; }
+  body.m .mvbtn { min-height: 40px; min-width: 48px; font-size: 15px; }
+  body.m .grip { display: none; }
   body.m #resultCard { padding: 12px; background: transparent; border: 0; box-shadow: none; }
   body.m #makeSummary { font-size: 15px; }
   body.m #makeSummary b { font-size: 20px; }
@@ -132,9 +144,9 @@
     <span data-s="1">① 貼り付け</span><span data-s="2">② 確認</span><span data-s="3">③ PDF作成</span>
   </div>
   <section class="card" data-step="1">
-    <label class="title" for="input">貼り付けエリア（A列：JANコード / B列：商品名）</label>
+    <label class="title" for="input">貼り付けエリア（JANコード・商品名・価格の列。並びは自動認識）</label>
     <button type="button" class="paste show-m" id="paste">📋 クリップボードから貼り付け</button>
-    <textarea id="input" spellcheck="false" placeholder="例）&#10;4901234567894&#9;サンプル商品A&#10;490123456789&#9;サンプル商品B（12桁は先頭に0を補います）"></textarea>
+    <textarea id="input" spellcheck="false" placeholder="例）&#10;4901234567894&#9;サンプル商品A&#9;1280&#10;490123456789&#9;サンプル商品B（12桁は先頭に0を補います）&#9;¥980"></textarea>
     <div class="opts">
       <label>ヘッダー行
         <select id="header">
@@ -158,9 +170,11 @@
   <section class="card" id="resultCard" data-step="2" hidden>
     <ul id="warnings"></ul>
     <div class="summary" id="summary"></div>
+    <p class="hint" id="colinfo"></p>
+    <p class="hint">行をドラッグするか、ボタン（⤒先頭 ↑ ↓ ⤓末尾）で並べ替えできます。PDFにはこの順番で出力されます。</p>
     <div class="tablewrap">
       <table>
-        <thead><tr><th>No.</th><th>JANコード（整形後）</th><th>商品名</th><th>状態</th></tr></thead>
+        <thead><tr><th>No.</th><th>JANコード（整形後）</th><th>商品名</th><th>価格</th><th>状態</th><th>並べ替え</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
@@ -195,8 +209,9 @@
 <section>
     <h2>1. このツールでできること</h2>
     <ul>
-      <li>ExcelのA列（JANコード）とB列（商品名）から、<b>A4サイズのPDF</b>を作ります。</li>
-      <li>1ページに2列で並び、各行に「番号・JANコードの数字とバーコード・商品名」が入ります。</li>
+      <li>ExcelのA列（JANコード）・B列（商品名）・C列（価格）から、<b>A4サイズのPDF</b>を作ります。C列の価格は省略できます。</li>
+      <li>1ページに2列で並び、各行に「番号・JANコードの数字とバーコード・商品名・価格」が入ります。</li>
+      <li>確認用の一覧で、行を<b>好きな順番に並べ替え</b>できます。PDFにはその順番で出力されます。</li>
       <li>データはお使いのパソコンの中だけで処理されます。<b>入力した内容がインターネットに送られることはありません。</b></li>
     </ul>
     <div class="tip">初回のPDF作成時だけ、部品（日本語フォントなど）をインターネットから読み込みます。インターネットに接続した状態でお使いください。</div>
@@ -205,24 +220,25 @@
     <h2>2. 準備するもの</h2>
     <ul>
       <li>パソコン（Chrome・Edge・Safari・Firefoxの最新版）</li>
-      <li>ExcelのデータA列にJANコード、B列に商品名が入っている表</li>
+      <li>ExcelのデータA列にJANコード、B列に商品名、C列に価格（任意）が入っている表</li>
       <li>このツール（作業ツールのメニューから開けます）</li>
     </ul>
     <h3>Excelの表の例</h3>
     <table>
-      <tr><th>A列（JANコード）</th><th>B列（商品名）</th></tr>
-      <tr><td>4901234567894</td><td>サンプル商品A</td></tr>
-      <tr><td>4549131410006</td><td>サンプル商品B</td></tr>
+      <tr><th>A列（JANコード）</th><th>B列（商品名）</th><th>C列（価格）</th></tr>
+      <tr><td>4901234567894</td><td>サンプル商品A</td><td>1280</td></tr>
+      <tr><td>4549131410006</td><td>サンプル商品B</td><td>¥980</td></tr>
     </table>
     <p>1行目に「JANコード」「商品名」などの見出し（ヘッダー）があっても構いません。</p>
+    <p><b>列の並びは自動で認識</b>します。JANコード・商品名・価格がどの列にあっても読み取れます（見出しの名前と、各列の中身から判断します）。認識結果は一覧の上に「列の自動認識：A列＝…」と表示されるので、貼り付けたらご確認ください。</p>
   </section>
 <section>
     <h2>3. 使い方（5ステップ）</h2>
     <ol>
       <li><b>ツールを開く</b><br>作業ツールのメニューから「JANバーコードPDF作成」を選びます。ブラウザに「JANバーコードPDF作成」の画面が出ます。</li>
-      <li><b>Excelでデータをコピーする</b><br>A列とB列のデータ部分をマウスで選び、<kbd>Ctrl</kbd>+<kbd>C</kbd>（Macは <kbd>⌘</kbd>+<kbd>C</kbd>）を押します。</li>
+      <li><b>Excelでデータをコピーする</b><br>A列〜C列のデータ部分をマウスで選び、<kbd>Ctrl</kbd>+<kbd>C</kbd>（Macは <kbd>⌘</kbd>+<kbd>C</kbd>）を押します。</li>
       <li><b>ツールに貼り付ける</b><br>画面の大きな白い枠（貼り付けエリア）をクリックし、<kbd>Ctrl</kbd>+<kbd>V</kbd>（Macは <kbd>⌘</kbd>+<kbd>V</kbd>）を押します。貼り付けた瞬間に、下に確認用の一覧が表示されます。</li>
-      <li><b>一覧を確認する</b><br>「状態」の列が「OK」ならそのまま使えます。赤くなっている行は問題があるデータです（5. 警告が出たらを見てください）。</li>
+      <li><b>一覧を確認する</b><br>「状態」の列が「OK」ならそのまま使えます。赤くなっている行は問題があるデータです（5. 警告が出たらを見てください）。順番を変えたいときは、行をドラッグするか、右端のボタン（⤒先頭へ ↑1つ上へ ↓1つ下へ ⤓末尾へ）で並べ替えます。</li>
       <li><b>PDFを作る</b><br>「PDFを作成してダウンロード」ボタンを押します。数秒でPDFがダウンロードされ、ブラウザの「ダウンロード」フォルダに <code>jan_barcode_日付_時刻.pdf</code> という名前で保存されます。あとは開いて印刷するだけです。</li>
     </ol>
     <div class="tip">まず試したいときは「サンプルを入力」ボタンを押すと、見本のデータが入ります。画面の動きを確認するのにおすすめです。</div>
@@ -241,7 +257,8 @@
 
     <h3>PDFの見た目</h3>
     <ul>
-      <li>左の列の上から下へ1, 2, 3…と並び、続いて右の列へ進みます。</li>
+      <li>左の列の上から下へ1, 2, 3…と並び、続いて右の列へ進みます。番号は並べ替えた後の順番です。</li>
+      <li>各行は「番号｜JANコードとバーコード｜商品名｜価格（右寄せ）」の順です。価格が1件も入っていないときは、従来どおり価格の列なしで出力します。</li>
       <li>1ページに入りきらない分は、自動で次のページになります。</li>
       <li>商品名が長いときは、枠に収まるように自動で折り返し、必要なら文字を小さくします。</li>
     </ul>
@@ -252,6 +269,7 @@
       <tr><td><code>&nbsp;490-1234-567-894&nbsp;</code>（空白・ハイフンあり）</td><td><code>4901234567894</code></td></tr>
       <tr><td><code>490123456789</code>（12桁）</td><td><code>0490123456789</code>（先頭に0を追加して13桁）</td></tr>
       <tr><td><code>４９０１２３４５６７８９４</code>（全角数字）</td><td><code>4901234567894</code>（半角に変換）</td></tr>
+      <tr><td><code>1280</code>、<code>¥1,280</code>、<code>1,280円</code>（価格）</td><td><code>¥1,280</code>（円記号・カンマ付きに統一）</td></tr>
     </table>
   </section>
 <section>
@@ -263,14 +281,15 @@
       <tr><td>○桁（12〜13桁が必要）</td><td>桁数が足りないか多すぎます。Excelで先頭の0が消えていないか確認してください（下の質問も参照）。</td></tr>
       <tr><td>チェックデジット不正</td><td>JANコードの最後の1桁が計算と合っていません。入力ミスの可能性が高いので、商品パッケージ等で正しい番号を確認してください。</td></tr>
       <tr><td>JANコードが空</td><td>A列が空欄です。</td></tr>
+      <tr><td>価格が数値でない</td><td>C列に数字以外の文字が入っています。この表示は警告で、PDFには入力どおりの文字で出力されます。</td></tr>
     </table>
   </section>
 <section>
     <h2>6. スマホで使うとき</h2>
     <p>スマホの画面では、自動で<b>スマホ専用の画面</b>に切り替わります。画面下のボタンで「①貼り付け → ②確認 → ③PDF作成」の3ステップを順に進めます。</p>
     <ol>
-      <li><b>①貼り付け</b>：Excel（またはExcelアプリ）でA列・B列をコピーし、「📋 クリップボードから貼り付け」ボタンを押します。うまく貼り付かないときは、白い枠を長押しして「ペースト」を選んでください。</li>
-      <li><b>②確認</b>：1件ずつカードで表示されます。赤いカードは問題のあるデータです。</li>
+      <li><b>①貼り付け</b>：Excel（またはExcelアプリ）でA列〜C列をコピーし、「📋 クリップボードから貼り付け」ボタンを押します。うまく貼り付かないときは、白い枠を長押しして「ペースト」を選んでください。</li>
+      <li><b>②確認</b>：1件ずつカードで表示されます。赤いカードは問題のあるデータです。カード下のボタン（⤒↑↓⤓）で順番を並べ替えできます。</li>
       <li><b>③PDF作成</b>：「PDFを作成」を押すと、「PDFを開く」「共有・保存」ボタンが出ます。共有からメールやファイルアプリへ送れます。</li>
     </ol>
     <div class="tip">スマホで印刷するときは、PDFを開いてから共有メニューの「プリント」を使い、拡大・縮小せずに100%で印刷してください。</div>
@@ -287,7 +306,7 @@
     <p>ExcelがJANコードを数字として扱うため、先頭の0が消えることがあります。12桁になった場合は本ツールが自動で0を足します。ただし、先頭が0以外の欠けた桁が混ざる場合は警告が出ます。Excelでセルの書式を「文字列」にしておくと防げます。</p>
 
     <h3>Q. 貼り付けたのに一覧が表示されません。</h3>
-    <p>ExcelでA列・B列のセルをコピーしたか確認してください。ほかのソフトの文字をコピーしたり、列がつながっていたりすると読み取れないことがあります。</p>
+    <p>ExcelでA列〜C列のセルをコピーしたか確認してください。ほかのソフトの文字をコピーしたり、列がつながっていたりすると読み取れないことがあります。</p>
 
     <h3>Q. 印刷するときの注意は？</h3>
     <p>PDFビューアで「実際のサイズ（100%）」で印刷してください。「用紙に合わせる」などで拡大・縮小するとバーコードの太さが変わり、読み取りにくくなることがあります。印刷後は、実際にバーコードリーダーで読めるか確認することをおすすめします。</p>
@@ -313,17 +332,28 @@
   var CONTENT_H = PAGE_H - PAGE_MARGIN * 2;
   var COL_GAP = 20;
   var COL_W = (CONTENT_W - COL_GAP) / 2;
-  var NUM_W = 28, JAN_W = 108, NAME_W = COL_W - NUM_W - JAN_W;
   var PAD_X = 3, PAD_Y = 2;
+  var PRICE_W_ON = 50;            // 価格列あり時の幅
+  var NUM_W, JAN_W, PRICE_W, NAME_W, BAR_W, NAME_USABLE, PRICE_USABLE;
   var SPACER = 2 * MM;            // 行間 2mm
   var BAR_H = 8 * MM;             // バーコード高さ 8mm
   var JAN_GAP = 2;                // JAN数字とバーコードの間隔
-  var BAR_W = JAN_W - PAD_X * 2;  // バーコード幅（枠幅に合わせる）
-  var NAME_USABLE = NAME_W - PAD_X * 2;
+  // 価格列の有無で列幅を切り替える（価格なしは従来レイアウト）
+  function setLayout(hasPrice) {
+    NUM_W = hasPrice ? 22 : 28;
+    JAN_W = hasPrice ? 94 : 108;
+    PRICE_W = hasPrice ? PRICE_W_ON : 0;
+    NAME_W = COL_W - NUM_W - JAN_W - PRICE_W;
+    BAR_W = JAN_W - PAD_X * 2;    // バーコード幅（枠幅に合わせる）
+    NAME_USABLE = NAME_W - PAD_X * 2;
+    PRICE_USABLE = PRICE_W - PAD_X * 2;
+  }
+  setLayout(false);
   var FONT_URL = 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/mplus1p/MPLUS1p-Regular.ttf';
 
   var $ = function (id) { return document.getElementById(id); };
   var parsed = [];
+  var srcLines = [], srcSkip = 0, autoFrozen = false, dragFrom = -1;
   var step = 1, lastBlob = null, lastName = '';
   var mq = window.matchMedia('(max-width: 700px)');
 
@@ -341,22 +371,91 @@
     return (10 - sum % 10) % 10 === +d[12];
   }
   function looksLikeJan(raw) { return /^\d{12,13}$/.test(cleanJan(raw)); }
+  // 価格: ¥・円・カンマ・全角数字を許容。数値なら「¥1,280」に整形
+  function parsePrice(raw) {
+    var t = toHalfWidth(raw || '').replace(/[，､]/g, ',').replace(/．/g, '.');
+    var s = t.replace(/[\s 　¥￥円,]|税込|税抜/g, '');
+    if (s === '') return { text: '', ok: true };
+    if (/^\d+(\.\d+)?$/.test(s)) return { text: '¥' + Number(s).toLocaleString('ja-JP'), ok: true };
+    return { text: t.trim(), ok: false };
+  }
+  var PRICE_TOKEN = /^[¥￥]?[0-9０-９][0-9０-９,，.．]*円?$/;
   function unquote(s) { return s.replace(/^"(.*)"$/s, '$1').replace(/""/g, '"'); }
+
+  // ---- 列の並びの自動認識（タブ区切りのデータ）----
+  var HDR_JAN = /jan|ean|バーコード|コード/i, HDR_PRICE = /価格|単価|金額|売価|定価|税込|円|price/i, HDR_NAME = /商品|品名|名称|名前|name/i;
+  function isPriceCell(raw) {
+    var t = toHalfWidth(raw || '').replace(/[，､]/g, ',').replace(/．/g, '.').replace(/[\s 　]/g, '');
+    return PRICE_TOKEN.test(t) && !looksLikeJan(raw);
+  }
+  function detectColumns(rows) {
+    var map = { jan: -1, name: -1, price: -1 };
+    if (!rows.length) return { jan: 0, name: 1, price: 2 };
+    var n = Math.min(8, rows.reduce(function (m, r) { return Math.max(m, r.length); }, 0));
+    var head = rows[0].some(function (c) { return looksLikeJan(c); }) ? null : rows[0];
+    // 1) 見出し行の名前（JANコード / 商品名 / 価格 など）
+    if (head) head.slice(0, n).forEach(function (c, i) {
+      var t = toHalfWidth(c).trim(); if (!t) return;
+      if (map.jan < 0 && HDR_JAN.test(t)) map.jan = i;
+      else if (map.price < 0 && HDR_PRICE.test(t)) map.price = i;
+      else if (map.name < 0 && HDR_NAME.test(t)) map.name = i;
+    });
+    // 2) データの中身（JAN形式 / 価格形式 / それ以外の文字）
+    var data = head && rows.length > 1 ? rows.slice(1) : rows;
+    function best(test, role) {
+      if (map[role] >= 0) return;
+      var bi = -1, bs = 0.5 - 1e-9;
+      for (var i = 0; i < n; i++) {
+        if (i === map.jan || i === map.name || i === map.price) continue;
+        var ne = 0, hit = 0;
+        data.forEach(function (r) { var v = (r[i] || '').trim(); if (v) { ne++; if (test(v)) hit++; } });
+        if (ne && hit / ne > bs) { bs = hit / ne; bi = i; }
+      }
+      map[role] = bi;
+    }
+    best(looksLikeJan, 'jan');
+    best(isPriceCell, 'price');
+    best(function (v) { return !looksLikeJan(v) && !isPriceCell(v); }, 'name');
+    // 3) 判定できなかった役割は、従来の並び（A=JAN, B=商品名, C=価格）を空いている列に割り当てる
+    if (map.jan < 0) map.jan = [0, 1, 2].filter(function (i) { return i !== map.name && i !== map.price; })[0];
+    if (map.name < 0) map.name = [1, 0, 2].filter(function (i) { return i !== map.jan && i !== map.price; })[0];
+    return map;
+  }
+  function describeColumns(map, hasTab) {
+    if (!hasTab) return '';
+    var out = [];
+    [['jan', 'JANコード'], ['name', '商品名'], ['price', '価格']].forEach(function (r) {
+      if (map[r[0]] >= 0) out.push(String.fromCharCode(65 + map[r[0]]) + '列＝' + r[1]);
+    });
+    return '列の自動認識： ' + out.sort().join(' / ');
+  }
 
   function parse() {
     var text = $('input').value.replace(/\r\n?/g, '\n');
     var lines = text.split('\n').filter(function (l) { return l.trim() !== ''; });
-    var rows = lines.map(function (l) {
-      var cols = l.indexOf('\t') >= 0 ? l.split('\t') : l.split(/\s{2,}|\s(?=\S)/);
-      var jan = cols[0] || '';
-      var name = cols.slice(1).join(' ').trim();
-      return { rawJan: unquote(jan.trim()), name: unquote(name) };
+    var cells = lines.map(function (l) { return l.indexOf('\t') >= 0 ? l.split('\t') : null; });
+    var map = detectColumns(cells.filter(function (c) { return c; }));
+    var rows = lines.map(function (l, li) {
+      var jan, name = '', price = '';
+      if (cells[li]) {
+        var c = cells[li];
+        jan = c[map.jan] || ''; name = map.name >= 0 ? (c[map.name] || '') : ''; price = map.price >= 0 ? (c[map.price] || '') : '';
+      } else {
+        // タブなし（空白区切り）: JAN形式の語・末尾の価格形式の語を探し、残りを商品名とする
+        var tk = l.trim().split(/\s+/), ji = -1, pi = -1;
+        for (var k = 0; k < tk.length; k++) if (looksLikeJan(tk[k])) { ji = k; break; }
+        if (ji < 0) ji = 0;
+        for (var q = tk.length - 1; q >= 0; q--) if (q !== ji && isPriceCell(tk[q])) { pi = q; break; }
+        jan = tk[ji]; price = pi >= 0 ? tk[pi] : '';
+        name = tk.filter(function (_, k) { return k !== ji && k !== pi; }).join(' ');
+      }
+      return { rawJan: unquote(jan.trim()), name: unquote(name.trim()), rawPrice: unquote(price.trim()) };
     });
-    var warnings = [];
+    var warnings = [], skip = 0;
     var hmode = $('header').value, skipped = false;
     if (rows.length) {
       var isHeader = hmode === 'yes' || (hmode === 'auto' && !looksLikeJan(rows[0].rawJan));
-      if (isHeader) { rows.shift(); skipped = true; }
+      if (isHeader) { rows.shift(); skipped = true; skip = 1; }
     }
     var items = rows.map(function (r, i) {
       var jan = cleanJan(r.rawJan), status = 'ok', msg = 'OK';
@@ -364,15 +463,20 @@
       else if (jan.length === 12) { jan = '0' + jan; status = 'fix'; msg = '12桁→先頭に0を補填'; }
       else if (jan.length !== 13) { status = 'err'; msg = jan.length + '桁（12〜13桁が必要）'; }
       if (status !== 'err' && !ean13Valid(jan)) { status = 'err'; msg = 'チェックデジット不正'; }
+      var price = parsePrice(r.rawPrice);
+      if (status !== 'err' && !price.ok) {
+        msg = (status === 'fix' ? msg + ' / ' : '') + '価格が数値でない（そのまま出力）'; status = 'fix';
+      }
       if (status === 'err') warnings.push((i + 1) + '件目: ' + msg + '「' + r.rawJan + '」');
-      return { jan: jan, rawJan: r.rawJan, name: r.name, status: status, msg: msg };
+      return { jan: jan, rawJan: r.rawJan, name: r.name, price: price.text, status: status, msg: msg };
     });
-    return { items: items, warnings: warnings, skipped: skipped };
+    return { items: items, warnings: warnings, skipped: skipped, lines: lines, skip: skip, colInfo: describeColumns(map, cells.some(function (c) { return c; })) };
   }
 
   function render() {
     var r = parse();
-    parsed = r.items;
+    $('colinfo').textContent = r.colInfo;
+    parsed = r.items; srcLines = r.lines; srcSkip = r.skip;
     var valid = parsed.filter(function (x) { return x.status !== 'err'; }).length;
     $('resultCard').hidden = parsed.length === 0;
     $('make').disabled = valid === 0;
@@ -393,15 +497,67 @@
     var tb = $('tbody'); tb.textContent = '';
     parsed.forEach(function (it, i) {
       var tr = document.createElement('tr'); tr.className = it.status;
-      [String(i + 1), it.status === 'err' ? it.rawJan : it.jan, it.name, it.msg].forEach(function (v, c) {
+      tr.dataset.i = i; tr.draggable = true;
+      [String(i + 1), it.status === 'err' ? it.rawJan : it.jan, it.name, it.price, it.msg].forEach(function (v, c) {
         var td = document.createElement('td'); td.textContent = v;
         if (c === 1) td.className = 'mono';
-        if (c === 3) td.className = 'st' + (it.status === 'ok' ? ' ok' : '');
+        if (c === 3) td.className = 'num';
+        if (c === 4) td.className = 'st' + (it.status === 'ok' ? ' ok' : '');
         tr.appendChild(td);
       });
+      var mv = document.createElement('td'); mv.className = 'mv';
+      var box = document.createElement('div'); box.className = 'mvbox';
+      var grip = document.createElement('span'); grip.className = 'grip'; grip.textContent = '⠿'; grip.title = 'ドラッグで移動';
+      box.appendChild(grip);
+      [['top', '⤒', '先頭へ'], ['up', '↑', '1つ上へ'], ['down', '↓', '1つ下へ'], ['bottom', '⤓', '末尾へ']].forEach(function (b) {
+        var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'mvbtn';
+        btn.dataset.act = b[0]; btn.textContent = b[1]; btn.title = b[2]; btn.setAttribute('aria-label', b[2]);
+        if ((i === 0 && (b[0] === 'top' || b[0] === 'up')) || (i === parsed.length - 1 && (b[0] === 'down' || b[0] === 'bottom'))) btn.disabled = true;
+        box.appendChild(btn);
+      });
+      mv.appendChild(box); tr.appendChild(mv);
       tb.appendChild(tr);
     });
   }
+
+  // ---- 並べ替え（貼り付けエリアの行そのものを入れ替える）----
+  function moveItem(from, to) {
+    if (from === to || from < 0 || to < 0 || from >= parsed.length || to >= parsed.length) return;
+    var body = srcLines.slice(srcSkip);
+    body.splice(to, 0, body.splice(from, 1)[0]);
+    // 先頭行がヘッダー扱いに変わらないよう、現在の判定で固定する
+    if ($('header').value === 'auto') { $('header').value = srcSkip ? 'yes' : 'no'; autoFrozen = true; }
+    $('input').value = srcLines.slice(0, srcSkip).concat(body).join('\n');
+    render();
+  }
+  function thawHeader() { if (autoFrozen) { $('header').value = 'auto'; autoFrozen = false; } }
+  $('tbody').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-act]') : null;
+    if (!b) return;
+    var i = +b.closest('tr').dataset.i, act = b.dataset.act;
+    moveItem(i, act === 'top' ? 0 : act === 'bottom' ? parsed.length - 1 : act === 'up' ? i - 1 : i + 1);
+  });
+  $('tbody').addEventListener('dragstart', function (e) {
+    var tr = e.target.closest('tr'); if (!tr) return;
+    dragFrom = +tr.dataset.i; tr.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(dragFrom));
+  });
+  $('tbody').addEventListener('dragover', function (e) {
+    var tr = e.target.closest('tr'); if (!tr || dragFrom < 0) return;
+    e.preventDefault();
+    var old = $('tbody').querySelector('tr.over'); if (old && old !== tr) old.classList.remove('over');
+    tr.classList.add('over');
+  });
+  $('tbody').addEventListener('drop', function (e) {
+    var tr = e.target.closest('tr'); if (!tr || dragFrom < 0) return;
+    e.preventDefault(); var from = dragFrom; dragFrom = -1;
+    moveItem(from, +tr.dataset.i);
+  });
+  $('tbody').addEventListener('dragend', function () {
+    dragFrom = -1;
+    var els = $('tbody').querySelectorAll('tr.dragging, tr.over');
+    for (var i = 0; i < els.length; i++) els[i].classList.remove('dragging', 'over');
+  });
 
   // ---- PDF生成 ----
   function barcodeSvg(code) {
@@ -426,6 +582,11 @@
   }
 
   // 全角=1em, 半角=約0.55em として折り返し行数を概算
+  function textWidth(text, size) {
+    var w = 0;
+    for (var ch of text) w += (/[ -~｡-ﾟ]/.test(ch) ? 0.55 : 1.0) * size;
+    return w;
+  }
   function countLines(text, size) {
     var lines = 1, w = 0;
     for (var ch of text) {
@@ -449,19 +610,29 @@
     var numTop = Math.max(0, (inner - numSize * LH) / 2);
     var f = fitName(it.name, inner);
     var nameTop = Math.max(0, (inner - f.h) / 2);
-    var janBlock = 12 + JAN_GAP + BAR_H;
+    var janSize = Math.min(12, Math.floor(BAR_W / (13 * 0.62) * 2) / 2);   // 13桁が1行に収まる文字サイズ
+    var janBlock = janSize + JAN_GAP + BAR_H;
     var janTop = Math.max(0, (inner - janBlock) / 2);
-    return {
-      table: {
-        widths: [NUM_W - PAD_X * 2, JAN_W - PAD_X * 2, NAME_W - PAD_X * 2], // pdfmakeの幅はパディングを含まない heights: [cellH],
-        body: [[
+    var widths = [NUM_W - PAD_X * 2, JAN_W - PAD_X * 2, NAME_W - PAD_X * 2];
+    var cells = [
           { text: String(no), fontSize: numSize, lineHeight: LH_PDF, alignment: 'center', margin: [-2, numTop, -2, 0] },
           { margin: [0, janTop, 0, 0], stack: [
-            { text: it.jan, fontSize: 12, alignment: 'center', lineHeight: 1 / 1.395 },
+            { text: it.jan, fontSize: janSize, alignment: 'center', lineHeight: 1 / 1.395 },
             { svg: barcodeSvg(it.jan), width: BAR_W, alignment: 'center', margin: [0, JAN_GAP, 0, 0] }
           ] },
           { text: it.name, fontSize: f.size, lineHeight: LH_PDF, margin: [0, nameTop, 0, 0] }
-        ]]
+    ];
+    if (PRICE_W) {
+      // 価格は1行・右寄せ。枠幅に収まるまで文字を縮小する
+      var ps = 12;
+      while (ps > 6 && textWidth(it.price, ps) > PRICE_USABLE) ps -= 0.5;
+      widths.push(PRICE_W - PAD_X * 2);
+      cells.push({ text: it.price, fontSize: ps, lineHeight: LH_PDF, alignment: 'right', margin: [0, Math.max(0, (inner - ps * LH) / 2), 0, 0] });
+    }
+    return {
+      table: {
+        widths: widths, // pdfmakeの幅はパディングを含まない heights: [cellH],
+        body: [cells]
       },
       layout: {
         hLineWidth: function () { return 0.5; }, vLineWidth: function () { return 0.5; },
@@ -474,6 +645,7 @@
   }
 
   function buildDoc(items, perCol) {
+    setLayout(items.some(function (x) { return x.price; }));
     var rowH = Math.floor(((CONTENT_H - 3) / perCol - SPACER - 1) * 10) / 10;
     var perPage = perCol * 2, content = [];
     for (var p = 0; p * perPage < items.length; p++) {
@@ -550,12 +722,13 @@
     });
   }
 
-  $('input').addEventListener('input', render);
-  $('header').addEventListener('change', render);
+  $('input').addEventListener('input', function () { thawHeader(); render(); });
+  $('header').addEventListener('change', function () { autoFrozen = false; render(); });
   $('make').addEventListener('click', makePdf);
-  $('clear').addEventListener('click', function () { $('input').value = ''; $('status').textContent = ''; render(); });
+  $('clear').addEventListener('click', function () { thawHeader(); $('input').value = ''; $('status').textContent = ''; render(); });
   $('sample').addEventListener('click', function () {
-    $('input').value = 'JANコード\t商品名\n4901234567894\tサンプル商品A\n 490-1234-567-894 \tハイフン・空白入りの商品B\n491234567894\t12桁（先頭0補填）の商品C\n4901234567895\tチェックデジット不正の例\nABC123\t数字以外の例\n4549131410006\tとても長い商品名のサンプルです。枠内に収まるように自動で折り返し、必要に応じて文字サイズを縮小します';
+    thawHeader();
+    $('input').value = 'JANコード\t商品名\t価格\n4901234567894\tサンプル商品A\t1280\n 490-1234-567-894 \tハイフン・空白入りの商品B\t¥980\n491234567894\t12桁（先頭0補填）の商品C\t１，５００円\n4901234567895\tチェックデジット不正の例\t300\nABC123\t数字以外の例\t\n4549131410006\tとても長い商品名のサンプルです。枠内に収まるように自動で折り返し、必要に応じて文字サイズを縮小します\t128000\n4902102072618\t価格が数値でない例\t要確認';
     render();
   });
 
@@ -592,7 +765,7 @@
     if (!navigator.clipboard || !navigator.clipboard.readText) {
       $('status').textContent = ''; alert('この端末では自動貼り付けができません。白い枠を長押しして「ペースト」を選んでください。'); return;
     }
-    navigator.clipboard.readText().then(function (t) { $('input').value = t; render(); })
+    navigator.clipboard.readText().then(function (t) { thawHeader(); $('input').value = t; render(); })
       .catch(function () { alert('貼り付けが許可されませんでした。白い枠を長押しして「ペースト」を選んでください。'); });
   });
   $('sharePdf').addEventListener('click', function () {
